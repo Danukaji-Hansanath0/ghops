@@ -88,6 +88,7 @@ jobs:
           cp -r "$GITHUB_WORKSPACE" "ghops-${VERSION}"
           cd "ghops-${VERSION}"
           sed -i "1s/.*/ghops (${VERSION}-1) unstable; urgency=medium/" debian/changelog
+          sudo apt update && sudo apt install -y build-essential devscripts debhelper dput-ng
           dpkg-buildpackage -S -sa -k"${GPG_KEY_ID}"
           cd ..
           dput ppa:danukaji/ghops "ghops_${VERSION}-1_source.changes"

@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build .deb
         run: |
-          sudo apt update && sudo apt install -y devscripts debhelper
+          sudo apt update && sudo apt install -y build-essential devscripts debhelper
           dpkg-buildpackage -us -uc -b
           mkdir -p artifacts
           mv ../ghops_*.deb artifacts/

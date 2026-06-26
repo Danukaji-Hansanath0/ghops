@@ -7,7 +7,7 @@ ZSHCOMPDIR ?= $(PREFIX)/share/zsh/site-functions
 
 VERSION := 1.0.0
 
-.PHONY: install uninstall
+.PHONY: install uninstall deb
 
 install:
 	install -d "$(DESTDIR)$(BINDIR)"
@@ -24,6 +24,13 @@ install:
 	install -m644 LICENSE "$(DESTDIR)$(LICENSEDIR)/LICENSE"
 
 	@echo "ghops v$(VERSION) installed to $(DESTDIR)$(PREFIX)"
+
+deb:
+	sudo apt update
+	sudo apt install -y build-essential devscripts debhelper
+	dpkg-buildpackage -us -uc -b
+	@echo "---"
+	@echo "Deb package built: ../ghops_$(VERSION)-1_all.deb"
 
 uninstall:
 	rm -f "$(DESTDIR)$(BINDIR)/ghops"
