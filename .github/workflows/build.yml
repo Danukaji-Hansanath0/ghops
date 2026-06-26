@@ -67,5 +67,5 @@ jobs:
   #           mkdir -p artifacts && cp *.pkg.tar.zst artifacts/
   #     - uses: actions/upload-artifact@v4
   #       with:
-          name: arch-package
-          path: artifacts/
+  #         name: arch-package
+  #         path: artifacts/
