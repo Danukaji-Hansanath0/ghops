@@ -37,12 +37,12 @@ EOF
 }
 
 show_logo() {
-    printf "${BLUE}${BOLD}   ____  ${CYAN}_   _  ${BLUE}____  ${CYAN}_____  ${BLUE}____  \n"
-    printf "${BLUE}  / ___|${CYAN}| | | |${BLUE}/ ___|${CYAN}| ____|${BLUE}|  _ \\\ \n"
-    printf "${BLUE} | |  _ ${CYAN}| |_| |${BLUE}\\\\___ \\${CYAN}|  _|  ${BLUE}| |_) |\n"
-    printf "${BLUE} | |_| |${CYAN}|  _  |${BLUE} ___) |${CYAN}| |___ ${BLUE}|  __/\n"
-    printf "${BLUE}  \\\____|${CYAN}|_| |_|${BLUE}|____/|${CYAN}|_____|${BLUE}|_|\n"
-    printf "                        ${YELLOW}${BOLD}made by danukaji${NC}\n"
+    echo -e "${BLUE}${BOLD}   ____  ${CYAN}_   _  ${BLUE}____  ${CYAN}_____  ${BLUE}____  "
+    echo -e "${BLUE}  / ___|${CYAN}| | | |${BLUE}/ ___|${CYAN}| ____|${BLUE}|  _ \\\ "
+    echo -e "${BLUE} | |  _ ${CYAN}| |_| |${BLUE}\\\\___ \\${CYAN}|  _|  ${BLUE}| |_) |"
+    echo -e "${BLUE} | |_| |${CYAN}|  _  |${BLUE} ___) |${CYAN}| |___ ${BLUE}|  __/"
+    echo -e "${BLUE}  \\\____|${CYAN}|_| |_|${BLUE}|____/|${CYAN}|_____|${BLUE}|_|"
+    echo -e "                        ${YELLOW}${BOLD}made by danukaji${NC}"
 }
 
 header() {
@@ -106,7 +106,7 @@ fetch_repos() {
 
 select_repos() {
     echo -e "\n${BLUE}> Enter the numbers of repos to select (e.g., 1 3 5):${NC}"
-    read -p "Selection: " selection
+    read -r -p "Selection: " selection
 
     selected_repos=()
     for num in $selection; do
@@ -139,6 +139,7 @@ collect_secrets() {
     while true; do
         echo -ne "${BOLD}Secret name:${NC} "
         read -r secret_name
+        secret_name=$(echo "$secret_name" | xargs)
 
         secret_name=$(echo "$secret_name" | xargs)
         [ -z "$secret_name" ] && break

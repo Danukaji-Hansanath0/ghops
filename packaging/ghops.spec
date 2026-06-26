@@ -16,7 +16,7 @@ Interactively select GitHub repositories and bulk-set secrets
 across all of them. Requires gh CLI and authentication.
 
 %prep
-%setup -q -n ghops
+%setup -q -n ghops-%{version}
 
 %install
 install -Dm755 bin/ghops    %{buildroot}%{_bindir}/ghops

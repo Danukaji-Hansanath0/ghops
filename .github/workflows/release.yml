@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pkg: [deb, rpm, arch]
+        pkg: [deb, rpm]
     steps:
       - uses: actions/checkout@v4
       - name: Build ${{ matrix.pkg }} package
@@ -122,12 +122,12 @@ jobs:
               mkdir -p artifacts
               cp ~/rpmbuild/RPMS/noarch/*.rpm artifacts/
               ;;
-            arch)
-              sudo pacman -S --noconfirm base-devel
-              makepkg -f
-              mkdir -p artifacts
-              cp *.pkg.tar.zst artifacts/
-              ;;
+            # arch)
+            #   sudo pacman -S --noconfirm base-devel
+            #   makepkg -f
+            #   mkdir -p artifacts
+            #   cp *.pkg.tar.zst artifacts/
+            #   ;;
           esac
       - uses: actions/upload-artifact@v4
         with:
