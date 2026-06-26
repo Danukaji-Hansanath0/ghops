@@ -53,14 +53,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Setup SSH agent with passphrase
+        env:
+          LAUNCHPAD_SSH_KEY: ${{ secrets.LAUNCHPAD_SSH_KEY }}
+          LAUNCHPAD_SSH_PASSPHRASE: ${{ secrets.LAUNCHPAD_SSH_PASSPHRASE }}
+        run: |
+          eval $(ssh-agent -s)
+          mkdir -p ~/.ssh
+          echo "$LAUNCHPAD_SSH_KEY" > ~/.ssh/launchpad
+          chmod 600 ~/.ssh/launchpad
+          echo "$LAUNCHPAD_SSH_PASSPHRASE" | ssh-add ~/.ssh/launchpad
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+      - name: Import GPG key with passphrase
+        env:
+          LAUNCHPAD_GPG_KEY: ${{ secrets.LAUNCHPAD_GPG_KEY }}
+          LAUNCHPAD_GPG_PASSPHRASE: ${{ secrets.LAUNCHPAD_GPG_PASSPHRASE }}
+        run: |
+          echo "$LAUNCHPAD_GPG_KEY" | gpg --batch --import
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d/ -f2 | head -1)
+          echo "$LAUNCHPAD_GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign < /dev/null
+          echo "GPG_KEY_ID=$GPG_KEY_ID" >> "$GITHUB_ENV"
+          printf "allow-preset-passphrase\n" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye 2>/dev/null || true
       - name: Build & upload to PPA
         env:
           DEBFULLNAME: danukaji
           DEBEMAIL: danukaji@example.com
-          LAUNCHPAD_GPG_KEY: ${{ secrets.LAUNCHPAD_GPG_KEY }}
         run: |
-          echo "$LAUNCHPAD_GPG_KEY" | gpg --import
-
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"
 
@@ -68,7 +88,7 @@ jobs:
           cp -r "$GITHUB_WORKSPACE" "ghops-${VERSION}"
           cd "ghops-${VERSION}"
           sed -i "1s/.*/ghops (${VERSION}-1) unstable; urgency=medium/" debian/changelog
-          dpkg-buildpackage -S -sa
+          dpkg-buildpackage -S -sa -k"${GPG_KEY_ID}"
           cd ..
           dput ppa:danukaji/ghops "ghops_${VERSION}-1_source.changes"
 
