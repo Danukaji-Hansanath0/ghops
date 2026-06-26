@@ -1,5 +1,0 @@
-bin/ghops usr/bin/
-completions/ghops.bash usr/share/bash-completion/completions/
-completions/ghops.zsh usr/share/zsh/site-functions/
-man/man1/ghops.1 usr/share/man/man1/
-LICENSE usr/share/licenses/ghops/

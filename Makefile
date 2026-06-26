@@ -18,7 +18,6 @@ install:
 
 	install -m755 bin/ghops "$(DESTDIR)$(BINDIR)/ghops"
 	install -m644 man/man1/ghops.1 "$(DESTDIR)$(MANDIR)/ghops.1"
-	gzip -9f "$(DESTDIR)$(MANDIR)/ghops.1"
 	install -m644 completions/ghops.bash "$(DESTDIR)$(BASHCOMPDIR)/ghops"
 	install -m644 completions/ghops.zsh "$(DESTDIR)$(ZSHCOMPDIR)/_ghops"
 	install -m644 LICENSE "$(DESTDIR)$(LICENSEDIR)/LICENSE"
@@ -34,7 +33,7 @@ deb:
 
 uninstall:
 	rm -f "$(DESTDIR)$(BINDIR)/ghops"
-	rm -f "$(DESTDIR)$(MANDIR)/ghops.1.gz"
+	rm -f "$(DESTDIR)$(MANDIR)/ghops.1"
 	rm -f "$(DESTDIR)$(BASHCOMPDIR)/ghops"
 	rm -f "$(DESTDIR)$(ZSHCOMPDIR)/_ghops"
 	rm -rf "$(DESTDIR)$(LICENSEDIR)"
