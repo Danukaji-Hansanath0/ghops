@@ -1,0 +1,17 @@
+Source: ghops
+Section: utils
+Priority: optional
+Maintainer: danukaji <danukaji@example.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/danukaji/ghops
+Vcs-Git: https://github.com/danukaji/ghops.git
+Vcs-Browser: https://github.com/danukaji/ghops
+
+Package: ghops
+Architecture: all
+Depends: gh, ${misc:Depends}
+Description: GitHub Multi-Repo Secret Manager
+ Bulk set GitHub Actions secrets across multiple repositories
+ interactively. Select repos with write access, enter secret
+ names/values, and inject them all at once.

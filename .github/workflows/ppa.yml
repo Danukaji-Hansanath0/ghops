@@ -1,0 +1,37 @@
+name: Publish PPA
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  ppa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & upload to Launchpad PPA
+        env:
+          DEBFULLNAME: danukaji
+          DEBEMAIL: danukaji@example.com
+          LAUNCHPAD_GPG_KEY: ${{ secrets.LAUNCHPAD_GPG_KEY }}
+          LAUNCHPAD_SSH_KEY: ${{ secrets.LAUNCHPAD_SSH_KEY }}
+        run: |
+          # Import GPG key
+          echo "$LAUNCHPAD_GPG_KEY" | gpg --batch --import
+          echo "$LAUNCHPAD_SSH_KEY" > ~/.ssh/launchpad
+          chmod 600 ~/.ssh/launchpad
+
+          VERSION="${GITHUB_REF_NAME#v}"
+          TMPDIR=$(mktemp -d)
+          cp -r "$GITHUB_WORKSPACE" "$TMPDIR/ghops-${VERSION}"
+          cd "$TMPDIR/ghops-${VERSION}"
+
+          sed -i "1s/.*/ghops (${VERSION}-1) unstable; urgency=medium/" debian/changelog
+
+          # Install deps
+          sudo apt update && sudo apt install -y devscripts debhelper dput-ng
+
+          dpkg-buildpackage -S -sa -k$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d/ -f2)
+
+          cd ..
+          dput ppa:danukaji/ghops "ghops_${VERSION}-1_source.changes"

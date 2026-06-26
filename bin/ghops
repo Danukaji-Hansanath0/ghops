@@ -1,0 +1,197 @@
+#!/bin/bash
+
+set -euo pipefail
+
+VERSION="1.0.0"
+
+# ANSI Color Codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+usage() {
+    cat <<EOF
+ghops v${VERSION} - GitHub Multi-Repo Secret Manager
+
+Usage:
+  ghops [flags]
+
+Flags:
+  -h, --help      Show this help message
+  -v, --version   Show version information
+
+Description:
+  Interactively select GitHub repositories and set secrets
+  across all of them in bulk.
+
+Dependencies:
+  gh (GitHub CLI) - https://cli.github.com/
+
+Example:
+  ghops
+EOF
+}
+
+show_logo() {
+    printf "${BLUE}${BOLD}   ____  ${CYAN}_   _  ${BLUE}____  ${CYAN}_____  ${BLUE}____  \n"
+    printf "${BLUE}  / ___|${CYAN}| | | |${BLUE}/ ___|${CYAN}| ____|${BLUE}|  _ \\\ \n"
+    printf "${BLUE} | |  _ ${CYAN}| |_| |${BLUE}\\\\___ \\${CYAN}|  _|  ${BLUE}| |_) |\n"
+    printf "${BLUE} | |_| |${CYAN}|  _  |${BLUE} ___) |${CYAN}| |___ ${BLUE}|  __/\n"
+    printf "${BLUE}  \\\____|${CYAN}|_| |_|${BLUE}|____/|${CYAN}|_____|${BLUE}|_|\n"
+    printf "                        ${YELLOW}${BOLD}made by danukaji${NC}\n"
+}
+
+header() {
+    echo -e "\n${CYAN}${BOLD}==================================================${NC}"
+    echo -e "${CYAN}${BOLD}   $1   ${NC}"
+    echo -e "${CYAN}${BOLD}==================================================${NC}\n"
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "ghops v${VERSION}"
+            exit 0
+            ;;
+    esac
+done
+
+check_deps() {
+    if ! command -v gh &> /dev/null; then
+        echo -e "${RED}${BOLD}[X] Error: github-cli (gh) is not installed.${NC}"
+        echo -e "${YELLOW}Install it from: https://cli.github.com/${NC}"
+        echo -e "${YELLOW}Or use your package manager:${NC}"
+        echo -e "  ${CYAN}Arch:${NC} sudo pacman -S github-cli"
+        echo -e "  ${CYAN}Debian/Ubuntu:${NC} sudo apt install gh"
+        echo -e "  ${CYAN}Fedora:${NC} sudo dnf install gh"
+        exit 1
+    fi
+}
+
+check_auth() {
+    echo -e "${BLUE}* Checking GitHub authentication status...${NC}"
+    if ! gh auth status &> /dev/null; then
+        echo -e "${RED}${BOLD}[X] Not logged into GitHub CLI.${NC}"
+        echo -e "${YELLOW}Run: ${NC}${BOLD}gh auth login${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}[OK] Authenticated!${NC}\n"
+}
+
+fetch_repos() {
+    echo -e "${BLUE}* Fetching your repositories...${NC}"
+    repos_raw=$(gh repo list --limit 100 --json nameWithOwner,viewerPermission \
+        -q '.[] | select(.viewerPermission == "ADMIN" or .viewerPermission == "MAINTAINER" or .viewerPermission == "WRITE") | .nameWithOwner')
+
+    if [ -z "$repos_raw" ]; then
+        echo -e "${RED}No repositories found with write permissions.${NC}"
+        exit 1
+    fi
+
+    mapfile -t repo_list <<< "$repos_raw"
+
+    echo -e "${CYAN}Available Repositories:${NC}"
+    for i in "${!repo_list[@]}"; do
+        printf "${YELLOW}%3d)${NC} %s\n" $((i+1)) "${repo_list[$i]}"
+    done
+}
+
+select_repos() {
+    echo -e "\n${BLUE}> Enter the numbers of repos to select (e.g., 1 3 5):${NC}"
+    read -p "Selection: " selection
+
+    selected_repos=()
+    for num in $selection; do
+        if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -gt 0 ] && [ "$num" -le "${#repo_list[@]}" ]; then
+            selected_repos+=("${repo_list[$((num-1))]}")
+        else
+            echo -e "${RED}Warning: Skipping invalid selection: $num${NC}"
+        fi
+    done
+
+    if [ ${#selected_repos[@]} -eq 0 ]; then
+        echo -e "${RED}No valid repos selected. Exiting.${NC}"
+        exit 1
+    fi
+
+    echo -e "\n${GREEN}Selected Repositories:${NC}"
+    for r in "${selected_repos[@]}"; do
+        echo -e "  - $r"
+    done
+}
+
+collect_secrets() {
+    header "Collect Secrets"
+    echo -e "${CYAN}Enter secrets to add to ALL selected repositories.${NC}"
+    echo -e "${YELLOW}(Leave name empty to finish)${NC}\n"
+
+    secret_names=()
+    secret_values=()
+
+    while true; do
+        echo -ne "${BOLD}Secret name:${NC} "
+        read -r secret_name
+
+        secret_name=$(echo "$secret_name" | xargs)
+        [ -z "$secret_name" ] && break
+
+        echo -e "${BOLD}Value for ${YELLOW}$secret_name${NC}:"
+        echo -e "${YELLOW}(Paste value, Ctrl+D on a new line when done)${NC}"
+        secret_value=$(cat)
+
+        if [ -z "$secret_value" ]; then
+            echo -e "${RED}Value cannot be empty. Skipping.${NC}"
+            continue
+        fi
+
+        secret_names+=("$secret_name")
+        secret_values+=("$secret_value")
+
+        line_count=$(echo "$secret_value" | wc -l)
+        echo -e "${GREEN}[OK] Captured $line_count lines for $secret_name.${NC}\n"
+    done
+
+    if [ ${#secret_names[@]} -eq 0 ]; then
+        echo -e "${RED}No secrets entered. Exiting.${NC}"
+        exit 0
+    fi
+}
+
+inject_secrets() {
+    header "Injecting Secrets"
+
+    for repo in "${selected_repos[@]}"; do
+        echo -e "${BLUE}Repo:${NC} ${BOLD}$repo${NC}"
+        for i in "${!secret_names[@]}"; do
+            s_name="${secret_names[$i]}"
+            s_val="${secret_values[$i]}"
+
+            echo -ne "   Setting ${CYAN}$s_name${NC} ... "
+            if echo "$s_val" | gh secret set "$s_name" --repo "$repo" &> /dev/null; then
+                echo -e "${GREEN}SUCCESS${NC}"
+            else
+                echo -e "${RED}FAILED${NC}"
+            fi
+        done
+        echo ""
+    done
+}
+
+show_logo
+check_deps
+check_auth
+header "GitHub Multi-Repo Secret Manager"
+fetch_repos
+select_repos
+collect_secrets
+inject_secrets
+
+echo -e "${GREEN}${BOLD}All operations complete!${NC}"

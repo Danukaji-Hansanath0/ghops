@@ -1,0 +1,111 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes "See LICENSE for details." \
+            bin/ghops
+
+  aur-publish:
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish to AUR
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          cat >> ~/.ssh/config <<EOF
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+            StrictHostKeyChecking no
+          EOF
+
+          git clone ssh://aur@aur.archlinux.org/ghops.git /tmp/aur
+          cp PKGBUILD .SRCINFO ghops.install /tmp/aur/
+          cd /tmp/aur
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "Update to ${{ github.ref_name }}"
+          git push
+
+  apt-publish:
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & upload to PPA
+        env:
+          DEBFULLNAME: danukaji
+          DEBEMAIL: danukaji@example.com
+          LAUNCHPAD_GPG_KEY: ${{ secrets.LAUNCHPAD_GPG_KEY }}
+        run: |
+          echo "$LAUNCHPAD_GPG_KEY" | gpg --import
+
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+
+          cd /tmp
+          cp -r "$GITHUB_WORKSPACE" "ghops-${VERSION}"
+          cd "ghops-${VERSION}"
+          sed -i "1s/.*/ghops (${VERSION}-1) unstable; urgency=medium/" debian/changelog
+          dpkg-buildpackage -S -sa
+          cd ..
+          dput ppa:danukaji/ghops "ghops_${VERSION}-1_source.changes"
+
+  binary-release:
+    needs: github-release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pkg: [deb, rpm, arch]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.pkg }} package
+        run: |
+          case "${{ matrix.pkg }}" in
+            deb)
+              sudo apt update && sudo apt install -y devscripts debhelper
+              dpkg-buildpackage -us -uc -b
+              mkdir -p artifacts
+              mv ../ghops_*.deb artifacts/
+              ;;
+            rpm)
+              sudo dnf install -y rpm-build || sudo yum install -y rpm-build
+              mkdir -p ~/rpmbuild/{SPECS,SOURCES}
+              sed "s/VER/${{ github.ref_name }}/" packaging/ghops.spec > ~/rpmbuild/SPECS/ghops.spec
+              tar czf ~/rpmbuild/SOURCES/ghops.tar.gz --transform="s/^ghops/ghops-ver/" ghops/
+              rpmbuild -ba ~/rpmbuild/SPECS/ghops.spec
+              mkdir -p artifacts
+              cp ~/rpmbuild/RPMS/noarch/*.rpm artifacts/
+              ;;
+            arch)
+              sudo pacman -S --noconfirm base-devel
+              makepkg -f
+              mkdir -p artifacts
+              cp *.pkg.tar.zst artifacts/
+              ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pkg }}
+          path: artifacts/

@@ -1,0 +1,13 @@
+pkgbase = ghops
+	pkgdesc = GitHub Multi-Repo Secret Manager - Bulk set secrets across repositories
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/danukaji/ghops
+	install = ghops.install
+	arch = any
+	license = MIT
+	depends = github-cli
+	source = ghops-1.0.0.tar.gz::https://github.com/danukaji/ghops/archive/v1.0.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = ghops
