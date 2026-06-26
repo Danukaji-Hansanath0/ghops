@@ -40,7 +40,9 @@ jobs:
           mkdir -p ~/rpmbuild/{SPECS,SOURCES}
           VERSION="1.0.0"
           sed "s/VER/${VERSION}/" packaging/ghops.spec > ~/rpmbuild/SPECS/ghops.spec
-          tar czf ~/rpmbuild/SOURCES/ghops.tar.gz --transform="s/^ghops/ghops-${VERSION}/" ghops/
+          mkdir -p ~/rpmbuild/SOURCES/ghops-${VERSION}
+          cp -r . ~/rpmbuild/SOURCES/ghops-${VERSION}/
+          cd ~/rpmbuild/SOURCES && tar czf ghops.tar.gz ghops-${VERSION}
           rpmbuild -ba ~/rpmbuild/SPECS/ghops.spec
           mkdir -p artifacts
           cp ~/rpmbuild/RPMS/noarch/*.rpm artifacts/ 2>/dev/null || true

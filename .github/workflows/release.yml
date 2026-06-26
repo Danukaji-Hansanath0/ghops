@@ -105,7 +105,7 @@ jobs:
         run: |
           case "${{ matrix.pkg }}" in
             deb)
-              sudo apt update && sudo apt install -y devscripts debhelper
+              sudo apt update && sudo apt install -y build-essential devscripts debhelper
               dpkg-buildpackage -us -uc -b
               mkdir -p artifacts
               mv ../ghops_*.deb artifacts/
@@ -113,8 +113,11 @@ jobs:
             rpm)
               sudo dnf install -y rpm-build || sudo yum install -y rpm-build
               mkdir -p ~/rpmbuild/{SPECS,SOURCES}
-              sed "s/VER/${{ github.ref_name }}/" packaging/ghops.spec > ~/rpmbuild/SPECS/ghops.spec
-              tar czf ~/rpmbuild/SOURCES/ghops.tar.gz --transform="s/^ghops/ghops-ver/" ghops/
+              VERSION="${{ github.ref_name }}"; VERSION="${VERSION#v}"
+              sed "s/VER/${VERSION}/" packaging/ghops.spec > ~/rpmbuild/SPECS/ghops.spec
+              mkdir -p ~/rpmbuild/SOURCES/ghops-${VERSION}
+              cp -r . ~/rpmbuild/SOURCES/ghops-${VERSION}/
+              cd ~/rpmbuild/SOURCES && tar czf ghops.tar.gz ghops-${VERSION}
               rpmbuild -ba ~/rpmbuild/SPECS/ghops.spec
               mkdir -p artifacts
               cp ~/rpmbuild/RPMS/noarch/*.rpm artifacts/
